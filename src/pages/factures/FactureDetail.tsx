@@ -25,6 +25,8 @@ export function FactureDetailPage() {
 
   const load = async () => {
     if (!id) return
+    setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
       const [f, l, p] = await Promise.all([
         supabase.from('factures').select('*,clients(*)').eq('id', id).single(),
@@ -34,7 +36,7 @@ export function FactureDetailPage() {
       setFacture(f.data as Facture)
       setLignes(l.data as LigneFacture[] ?? [])
       setPaiements(p.data as Paiement[] ?? [])
-    } catch (e) { console.error(e) } finally { setLoading(false) }
+    } catch (e) { console.error(e) } finally { clearTimeout(t); setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])

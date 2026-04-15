@@ -21,6 +21,7 @@ export function FacturesPage() {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
     let q = supabase.from('factures').select('*,clients(nom_societe)', { count: 'exact' })
     if (statut) q = q.eq('statut', statut)
@@ -29,7 +30,7 @@ export function FacturesPage() {
     setFactures(data as Facture[] ?? [])
     setTotal(count ?? 0)
     } catch (e) { console.error(e) } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 

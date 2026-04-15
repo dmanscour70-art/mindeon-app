@@ -21,6 +21,8 @@ export function DevisDetailPage() {
 
   const load = async () => {
     if (!id) return
+    setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
       const [d, l] = await Promise.all([
         supabase.from('devis').select('*,clients(*)').eq('id', id).single(),
@@ -28,7 +30,7 @@ export function DevisDetailPage() {
       ])
       setDevis(d.data as Devis)
       setLignes(l.data as LigneDevis[] ?? [])
-    } catch (e) { console.error(e) } finally { setLoading(false) }
+    } catch (e) { console.error(e) } finally { clearTimeout(t); setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])

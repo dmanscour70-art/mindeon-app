@@ -62,6 +62,7 @@ export function MaintenancesPage() {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
       const [m, p] = await Promise.all([
         supabase
@@ -80,7 +81,7 @@ export function MaintenancesPage() {
     } catch (e) {
       console.error(e)
     } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 

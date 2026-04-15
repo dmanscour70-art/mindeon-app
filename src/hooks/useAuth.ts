@@ -8,8 +8,8 @@ export function useAuth() {
 
   useEffect(() => {
     // Récupère la session initiale
-    // Force loading=false after 5s max to avoid infinite spinner
-    const timeout = setTimeout(() => setLoading(false), 3000)
+    // Force loading=false after 8s max to avoid infinite spinner
+    const timeout = setTimeout(() => setLoading(false), 8_000)
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       clearTimeout(timeout)

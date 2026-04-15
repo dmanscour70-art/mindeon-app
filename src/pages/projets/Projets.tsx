@@ -26,6 +26,7 @@ export function ProjetsPage() {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
     let q = supabase.from('projets')
       .select('*,clients(nom_societe),chef_projet:chef_projet_id(prenom,nom)', { count: 'exact' })
@@ -36,7 +37,7 @@ export function ProjetsPage() {
     setProjets(data as Projet[] ?? [])
     setTotal(count ?? 0)
     } catch (e) { console.error(e) } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 

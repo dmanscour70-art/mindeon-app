@@ -36,6 +36,7 @@ export function ClientDetailPage() {
   const load = async () => {
     if (!id) return
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
       const [c, ct, p, d, f, n] = await Promise.all([
         supabase.from('clients').select('*,commercial:commercial_id(id,prenom,nom,role,avatar_url)').eq('id', id).single(),
@@ -51,7 +52,7 @@ export function ClientDetailPage() {
       setDevis(d.data as Devis[] ?? [])
       setFactures(f.data as Facture[] ?? [])
       setNotes(n.data as NoteClient[] ?? [])
-    } catch (e) { console.error(e) } finally { setLoading(false) }
+    } catch (e) { console.error(e) } finally { clearTimeout(t); setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])

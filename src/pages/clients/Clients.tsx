@@ -26,6 +26,7 @@ export function ClientsPage() {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
     let q = supabase.from('clients').select('*,commercial:commercial_id(prenom,nom)', { count: 'exact' })
     if (search) q = q.ilike('nom_societe', `%${search}%`)
@@ -36,7 +37,7 @@ export function ClientsPage() {
     setClients(data as Client[] ?? [])
     setTotal(count ?? 0)
     } catch (e) { console.error(e) } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 

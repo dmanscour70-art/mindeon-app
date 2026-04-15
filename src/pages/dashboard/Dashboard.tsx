@@ -44,6 +44,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     const load = async () => {
+      const t = setTimeout(() => setLoading(false), 12_000)
       try {
         const now = new Date()
         const moisDebut = format(subMonths(now, 11), 'yyyy-MM-01')
@@ -108,6 +109,7 @@ export function DashboardPage() {
       } catch (e) {
         console.error('Dashboard load error:', e)
       } finally {
+        clearTimeout(t)
         setLoading(false)
       }
     }

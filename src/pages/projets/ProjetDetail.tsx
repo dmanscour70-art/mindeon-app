@@ -36,6 +36,7 @@ export function ProjetDetailPage() {
   const load = async () => {
     if (!id) return
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
       const [p, t, e, d, ac] = await Promise.all([
         supabase.from('projets').select('*,clients(nom_societe,email),chef_projet:chef_projet_id(id,prenom,nom,role,avatar_url)').eq('id', id).single(),
@@ -62,7 +63,7 @@ export function ProjetDetailPage() {
           .limit(10)
         setFactures(fData as Facture[] ?? [])
       }
-    } catch (e) { console.error(e) } finally { setLoading(false) }
+    } catch (e) { console.error(e) } finally { clearTimeout(t); setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])

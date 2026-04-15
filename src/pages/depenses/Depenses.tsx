@@ -80,6 +80,7 @@ export function DepensesPage() {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
       const { data } = await supabase
         .from('depenses')
@@ -89,7 +90,7 @@ export function DepensesPage() {
     } catch (e) {
       console.error(e)
     } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 

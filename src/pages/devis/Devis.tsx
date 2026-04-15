@@ -20,6 +20,7 @@ export function DevisPage() {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
     let q = supabase.from('devis').select('*,clients(nom_societe)', { count: 'exact' })
     if (statut) q = q.eq('statut', statut)
@@ -28,7 +29,7 @@ export function DevisPage() {
     setDevis(data as Devis[] ?? [])
     setTotal(count ?? 0)
     } catch (e) { console.error(e) } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 

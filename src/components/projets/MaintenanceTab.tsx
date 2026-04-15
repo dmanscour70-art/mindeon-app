@@ -55,6 +55,7 @@ export function MaintenanceTab({ projetId, clientId }: Props) {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
       const { data } = await supabase
         .from('maintenances')
@@ -66,7 +67,7 @@ export function MaintenanceTab({ projetId, clientId }: Props) {
     } catch (e) {
       console.error(e)
     } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 

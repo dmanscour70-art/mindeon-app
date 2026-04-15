@@ -19,11 +19,12 @@ export function CollaborateursPage() {
 
   const load = async () => {
     setLoading(true)
+    const t = setTimeout(() => setLoading(false), 12_000)
     try {
     const { data } = await supabase.from('collaborateurs').select('*').order('nom')
     setCollabs(data as Collaborateur[] ?? [])
     } catch (e) { console.error(e) } finally {
-      setLoading(false)
+      clearTimeout(t); setLoading(false)
     }
   }
 
