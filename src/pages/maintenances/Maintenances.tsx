@@ -73,7 +73,6 @@ export function MaintenancesPage() {
         supabase
           .from('projets')
           .select('*,clients(nom_societe)')
-          .in('statut', ['en_attente', 'en_cours', 'en_revision'])
           .order('nom'),
       ])
       setMaintenances(m.data as MaintWithRelations[] ?? [])
