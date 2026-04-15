@@ -1,5 +1,29 @@
+# SPA routing — redirect all non-file/dir requests to index.html
 RewriteEngine On
 RewriteBase /
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [QSA,L]
+
+# ── Cache control ─────────────────────────────────────────────
+# index.html : NEVER cache — must always be re-fetched so the
+# browser gets the latest JS/CSS filenames after each deploy.
+<IfModule mod_headers.c>
+  <FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
+# Hashed assets (JS, CSS) : cache 1 year — safe because Vite
+# changes the filename hash on every build.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  <FilesMatch "\.(js|css|woff2?|ttf|otf|eot|png|jpg|jpeg|gif|ico|svg|webp)$">
+    ExpiresDefault "access plus 1 year"
+  </FilesMatch>
+  <FilesMatch "^index\.html$">
+    ExpiresDefault "access plus 0 seconds"
+  </FilesMatch>
+</IfModule>
