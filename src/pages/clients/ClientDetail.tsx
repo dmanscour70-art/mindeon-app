@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit, Trash2, Plus, FileText, Receipt, FolderKanban } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardBody, CardTitle } from '@/components/ui/card'
 import { Modal, ConfirmDialog } from '@/components/ui/modal'
 import { StatutClientBadge, StatutDevisBadge, StatutFactureBadge, StatutProjetBadge } from '@/components/ui/badge'
 import { ClientForm } from '@/components/clients/ClientForm'
+import { Avatar } from '@/components/shared/avatar'
+import { EmailTab } from '@/components/shared/EmailTab'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
-import type { Client, Contact, NoteClient, Projet, Devis, Facture } from '@/types'
+import type { Client, Contact, NoteClient, Projet, Devis, Facture, Collaborateur } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 
-const TABS = ['Infos', 'Contacts', 'Projets', 'Devis', 'Factures', 'Notes'] as const
+const TABS = ['Infos', 'Contacts', 'Projets', 'Devis', 'Factures', 'Email', 'Notes'] as const
 type Tab = (typeof TABS)[number]
 
 export function ClientDetailPage() {
@@ -34,21 +36,22 @@ export function ClientDetailPage() {
   const load = async () => {
     if (!id) return
     setLoading(true)
-    const [c, ct, p, d, f, n] = await Promise.all([
-      supabase.from('clients').select('*,commercial:commercial_id(prenom,nom)').eq('id', id).single(),
-      supabase.from('contacts').select('*').eq('client_id', id).order('est_principal', { ascending: false }),
-      supabase.from('projets').select('*').eq('client_id', id).order('created_at', { ascending: false }),
-      supabase.from('devis').select('*').eq('client_id', id).order('created_at', { ascending: false }),
-      supabase.from('factures').select('*').eq('client_id', id).order('created_at', { ascending: false }),
-      supabase.from('notes_client').select('*,auteur:auteur_id(prenom,nom)').eq('client_id', id).order('created_at', { ascending: false }),
-    ])
-    setClient(c.data as Client)
-    setContacts(ct.data as Contact[] ?? [])
-    setProjets(p.data as Projet[] ?? [])
-    setDevis(d.data as Devis[] ?? [])
-    setFactures(f.data as Facture[] ?? [])
-    setNotes(n.data as NoteClient[] ?? [])
-    setLoading(false)
+    try {
+      const [c, ct, p, d, f, n] = await Promise.all([
+        supabase.from('clients').select('*,commercial:commercial_id(id,prenom,nom,role,avatar_url)').eq('id', id).single(),
+        supabase.from('contacts').select('*').eq('client_id', id).order('est_principal', { ascending: false }),
+        supabase.from('projets').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+        supabase.from('devis').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+        supabase.from('factures').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+        supabase.from('notes_client').select('*,auteur:auteur_id(prenom,nom)').eq('client_id', id).order('created_at', { ascending: false }),
+      ])
+      setClient(c.data as Client)
+      setContacts(ct.data as Contact[] ?? [])
+      setProjets(p.data as Projet[] ?? [])
+      setDevis(d.data as Devis[] ?? [])
+      setFactures(f.data as Facture[] ?? [])
+      setNotes(n.data as NoteClient[] ?? [])
+    } catch (e) { console.error(e) } finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])
@@ -81,6 +84,8 @@ export function ClientDetailPage() {
   if (loading) return <div className="animate-pulse space-y-4"><div className="h-10 bg-border-color rounded" /><div className="h-64 bg-border-color rounded" /></div>
   if (!client) return <div className="text-text-muted">Client introuvable</div>
 
+  const commercial = (client as Client & { commercial?: Collaborateur | null }).commercial
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -93,7 +98,15 @@ export function ClientDetailPage() {
             <h1 className="font-heading text-xl font-bold text-text-primary truncate">{client.nom_societe}</h1>
             <StatutClientBadge statut={client.statut} />
           </div>
-          {client.secteur && <p className="text-text-muted text-sm">{client.secteur}</p>}
+          <div className="flex items-center gap-3 mt-0.5">
+            {client.secteur && <p className="text-text-muted text-sm">{client.secteur}</p>}
+            {commercial && (
+              <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                <Avatar prenom={commercial.prenom} nom={commercial.nom} src={commercial.avatar_url} size="xs" />
+                <span>{commercial.prenom} {commercial.nom}</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
@@ -120,12 +133,12 @@ export function ClientDetailPage() {
       </div>
 
       {/* Onglets */}
-      <div className="flex gap-1 border-b border-border-color">
+      <div className="flex gap-1 border-b border-border-color overflow-x-auto">
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               tab === t ? 'border-accent text-accent' : 'border-transparent text-text-muted hover:text-text-primary'
             }`}
           >
@@ -134,7 +147,6 @@ export function ClientDetailPage() {
         ))}
       </div>
 
-      {/* Contenu onglets */}
       {tab === 'Infos' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
@@ -154,19 +166,35 @@ export function ClientDetailPage() {
               ) : null)}
             </CardBody>
           </Card>
-          <Card>
-            <CardHeader><CardTitle>Informations</CardTitle></CardHeader>
-            <CardBody className="space-y-3 text-sm">
-              <div className="flex gap-2">
-                <span className="text-text-muted w-28 flex-shrink-0">Créé le</span>
-                <span className="text-text-primary">{formatDate(client.created_at)}</span>
-              </div>
-              <div className="flex gap-2">
-                <span className="text-text-muted w-28 flex-shrink-0">Mis à jour</span>
-                <span className="text-text-primary">{formatDate(client.updated_at)}</span>
-              </div>
-            </CardBody>
-          </Card>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Informations</CardTitle></CardHeader>
+              <CardBody className="space-y-3 text-sm">
+                <div className="flex gap-2">
+                  <span className="text-text-muted w-28 flex-shrink-0">Créé le</span>
+                  <span className="text-text-primary">{formatDate(client.created_at)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-text-muted w-28 flex-shrink-0">Mis à jour</span>
+                  <span className="text-text-primary">{formatDate(client.updated_at)}</span>
+                </div>
+              </CardBody>
+            </Card>
+            {commercial && (
+              <Card>
+                <CardHeader><CardTitle>Commercial référent</CardTitle></CardHeader>
+                <CardBody>
+                  <div className="flex items-center gap-3">
+                    <Avatar prenom={commercial.prenom} nom={commercial.nom} src={commercial.avatar_url} size="md" />
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{commercial.prenom} {commercial.nom}</p>
+                      <p className="text-xs text-text-muted capitalize">{commercial.role}</p>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 
@@ -209,6 +237,7 @@ export function ClientDetailPage() {
                 <StatutProjetBadge statut={p.statut} />
               </Link>
             ))}
+            {projets.length === 0 && <p className="text-text-muted text-sm">Aucun projet</p>}
           </CardBody>
         </Card>
       )}
@@ -232,6 +261,7 @@ export function ClientDetailPage() {
                 </div>
               </Link>
             ))}
+            {devis.length === 0 && <p className="text-text-muted text-sm">Aucun devis</p>}
           </CardBody>
         </Card>
       )}
@@ -252,8 +282,19 @@ export function ClientDetailPage() {
                 </div>
               </Link>
             ))}
+            {factures.length === 0 && <p className="text-text-muted text-sm">Aucune facture</p>}
           </CardBody>
         </Card>
+      )}
+
+      {tab === 'Email' && (
+        <EmailTab
+          clientId={id ?? null}
+          clientEmail={client.email}
+          clientNom={client.nom_societe}
+          devis={devis}
+          factures={factures}
+        />
       )}
 
       {tab === 'Notes' && (

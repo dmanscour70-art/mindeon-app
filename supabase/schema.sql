@@ -341,8 +341,9 @@ DECLARE
   ];
 BEGIN
   FOREACH tbl IN ARRAY tbls LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "auth_all_%s" ON %I;', tbl, tbl);
     EXECUTE format('
-      CREATE POLICY IF NOT EXISTS "auth_all_%s"
+      CREATE POLICY "auth_all_%s"
       ON %I FOR ALL
       TO authenticated
       USING (auth.uid() IS NOT NULL)

@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 
 export function LoginPage() {
-  const { user, signIn, loading } = useAuth()
+  const { user, signIn, signUp, loading } = useAuth()
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd] = useState(false)
@@ -17,14 +18,20 @@ export function LoginPage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await signIn(email, password)
-      toast.success('Connexion réussie !')
+      if (mode === 'login') {
+        await signIn(email, password)
+        toast.success('Connexion réussie !')
+      } else {
+        await signUp(email, password)
+        toast.success('Compte créé ! Vous êtes connecté.')
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur'
       toast.error(
-        msg.includes('Invalid login credentials')
-          ? 'Email ou mot de passe incorrect'
-          : msg
+        msg.includes('Invalid login credentials') ? 'Email ou mot de passe incorrect' :
+        msg.includes('already registered') ? 'Cet email est déjà utilisé' :
+        msg.includes('Password should be') ? 'Mot de passe trop court (6 caractères minimum)' :
+        msg
       )
     } finally {
       setSubmitting(false)
@@ -51,9 +58,20 @@ export function LoginPage() {
 
         {/* Card */}
         <div className="bg-bg-surface border border-border-color rounded-2xl p-8">
-          <div className="mb-6">
-            <h2 className="font-heading font-semibold text-xl text-white">Connexion</h2>
-            <p className="text-text-muted text-sm mt-1">Accédez à votre espace de travail</p>
+          {/* Toggle */}
+          <div className="flex bg-bg-app rounded-lg p-1 mb-6">
+            <button
+              onClick={() => setMode('login')}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'login' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'}`}
+            >
+              Connexion
+            </button>
+            <button
+              onClick={() => setMode('signup')}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'signup' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'}`}
+            >
+              Créer un compte
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,6 +102,7 @@ export function LoginPage() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={6}
                   className="w-full pl-10 pr-10 py-2.5 bg-bg-app border border-border-color rounded-lg text-text-primary placeholder-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
                 />
                 <button
@@ -94,6 +113,9 @@ export function LoginPage() {
                   {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {mode === 'signup' && (
+                <p className="text-xs text-text-muted mt-1">6 caractères minimum</p>
+              )}
             </div>
 
             <button
@@ -102,7 +124,7 @@ export function LoginPage() {
               className="w-full flex items-center justify-center gap-2 py-2.5 bg-accent hover:bg-accent-hover text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              Se connecter
+              {mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
             </button>
           </form>
         </div>

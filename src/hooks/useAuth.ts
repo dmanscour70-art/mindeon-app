@@ -8,20 +8,24 @@ export function useAuth() {
 
   useEffect(() => {
     // Récupère la session initiale
+    // Force loading=false after 5s max to avoid infinite spinner
+    const timeout = setTimeout(() => setLoading(false), 3000)
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(timeout)
       setUser(session?.user ?? null)
       if (session?.user) {
-        await loadCollaborateur(session.user.id, session.user.email ?? '')
+        try { await loadCollaborateur(session.user.id, session.user.email ?? '') } catch {}
       }
       setLoading(false)
-    })
+    }).catch(() => { clearTimeout(timeout); setLoading(false) })
 
     // Écoute les changements d'auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null)
         if (session?.user) {
-          await loadCollaborateur(session.user.id, session.user.email ?? '')
+          try { await loadCollaborateur(session.user.id, session.user.email ?? '') } catch {}
         } else {
           setCollaborateur(null)
         }
@@ -64,12 +68,17 @@ export function useAuth() {
     if (error) throw error
   }
 
+  async function signUp(email: string, password: string) {
+    const { error } = await supabase.auth.signUp({ email, password })
+    if (error) throw error
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
     setCollaborateur(null)
   }
 
-  return { user, collaborateur, loading, signIn, signOut }
+  return { user, collaborateur, loading, signIn, signUp, signOut }
 }
 
 function capitalize(s: string) {

@@ -44,81 +44,72 @@ export function DashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      const now = new Date()
-      const moisDebut = format(subMonths(now, 11), 'yyyy-MM-01')
-
-      const [s1, s2, s3, s4, s5] = await Promise.all([
-        // KPIs
-        supabase.rpc('get_stats_dashboard').single(),
-        // CA mensuel 12 mois
-        supabase.from('factures')
-          .select('date_emission,total_ttc,montant_paye,statut')
-          .gte('date_emission', moisDebut)
-          .neq('statut', 'annulee'),
-        // Projets actifs
-        supabase.from('projets')
-          .select('id,nom,statut,progression,date_fin_prevue,clients(nom_societe)')
-          .in('statut', ['en_cours', 'en_revision', 'en_attente'])
-          .order('updated_at', { ascending: false })
-          .limit(6),
-        // Factures à surveiller
-        supabase.from('factures')
-          .select('id,numero,statut,total_ttc,date_echeance,montant_paye,clients(nom_societe)')
-          .in('statut', ['envoyee', 'en_retard', 'partiellement_payee'])
-          .order('date_echeance')
-          .limit(5),
-        // Répartition projets
-        supabase.from('projets').select('statut'),
-      ])
-
-      // Stats dashboard (fallback si rpc non dispo)
-      if (s1.data) {
-        setStats(s1.data as unknown as StatsDashboard)
-      } else {
-        // Calcul local
+      try {
+        const now = new Date()
+        const moisDebut = format(subMonths(now, 11), 'yyyy-MM-01')
         const moisCourant = format(now, 'yyyy-MM')
-        const facturesMois = (s2.data ?? []).filter(f =>
+
+        const { data: factures12m } = await supabase
+          .from('factures').select('date_emission,total_ttc,montant_paye,statut')
+          .gte('date_emission', moisDebut).neq('statut', 'annulee')
+
+        const { data: projetsActifs } = await supabase
+          .from('projets').select('id,nom,statut,progression,date_fin_prevue,clients(nom_societe)')
+          .in('statut', ['en_cours', 'en_revision', 'en_attente'])
+          .order('updated_at', { ascending: false }).limit(6)
+
+        const { data: facturesAlert } = await supabase
+          .from('factures').select('id,numero,statut,total_ttc,date_echeance,montant_paye,clients(nom_societe)')
+          .in('statut', ['envoyee', 'en_retard', 'partiellement_payee'])
+          .order('date_echeance').limit(5)
+
+        const { data: tousLesProjets } = await supabase.from('projets').select('statut')
+
+        // KPIs calculés localement
+        const facturesMois = (factures12m ?? []).filter(f =>
           f.date_emission?.startsWith(moisCourant) && ['envoyee', 'payee', 'partiellement_payee', 'en_retard'].includes(f.statut)
         )
         setStats({
           ca_mois_facture: facturesMois.reduce((s, f) => s + (f.total_ttc ?? 0), 0),
           ca_mois_encaisse: facturesMois.reduce((s, f) => s + (f.montant_paye ?? 0), 0),
-          projets_actifs: (s5.data ?? []).filter(p => ['en_cours', 'en_revision'].includes(p.statut)).length,
+          projets_actifs: (tousLesProjets ?? []).filter(p => ['en_cours', 'en_revision'].includes(p.statut)).length,
           devis_en_attente_count: 0,
           devis_en_attente_montant: 0,
           taux_conversion: 0,
         })
-      }
 
-      // CA mensuel groupé
-      const grouped: Record<string, CAMensuel> = {}
-      for (let i = 11; i >= 0; i--) {
-        const m = format(subMonths(now, i), 'yyyy-MM')
-        grouped[m] = { mois: m, ca_facture: 0, ca_encaisse: 0 }
-      }
-      for (const f of (s2.data ?? [])) {
-        const m = f.date_emission?.substring(0, 7)
-        if (m && grouped[m]) {
-          if (!['brouillon', 'annulee'].includes(f.statut)) grouped[m].ca_facture += f.total_ttc ?? 0
-          grouped[m].ca_encaisse += f.montant_paye ?? 0
+        // CA mensuel
+        const grouped: Record<string, CAMensuel> = {}
+        for (let i = 11; i >= 0; i--) {
+          const m = format(subMonths(now, i), 'yyyy-MM')
+          grouped[m] = { mois: m, ca_facture: 0, ca_encaisse: 0 }
         }
+        for (const f of (factures12m ?? [])) {
+          const m = f.date_emission?.substring(0, 7)
+          if (m && grouped[m]) {
+            if (!['brouillon', 'annulee'].includes(f.statut)) grouped[m].ca_facture += f.total_ttc ?? 0
+            grouped[m].ca_encaisse += f.montant_paye ?? 0
+          }
+        }
+        setCAData(Object.values(grouped).map(d => ({
+          ...d,
+          mois: format(parseISO(d.mois + '-01'), 'MMM yy', { locale: fr }),
+        })))
+
+        setProjets((projetsActifs ?? []) as unknown as (Projet & { client?: { nom_societe: string } | null })[])
+        setFactures((facturesAlert ?? []) as unknown as (Facture & { client?: { nom_societe: string } | null })[])
+
+        const counts: Record<string, number> = {}
+        for (const p of (tousLesProjets ?? [])) counts[p.statut] = (counts[p.statut] ?? 0) + 1
+        const colors: Record<string, string> = { en_attente: '#f59e0b', en_cours: '#6c63ff', en_revision: '#8b5cf6', termine: '#10b981', annule: '#ef4444' }
+        const labels: Record<string, string> = { en_attente: 'En attente', en_cours: 'En cours', en_revision: 'En révision', termine: 'Terminé', annule: 'Annulé' }
+        setProjetStats(Object.entries(counts).map(([k, v]) => ({ name: labels[k] ?? k, value: v, color: colors[k] ?? '#8b8aa8' })))
+
+      } catch (e) {
+        console.error('Dashboard load error:', e)
+      } finally {
+        setLoading(false)
       }
-      setCAData(Object.values(grouped).map(d => ({
-        ...d,
-        mois: format(parseISO(d.mois + '-01'), 'MMM yy', { locale: fr }),
-      })))
-
-      setProjets((s3.data ?? []) as unknown as (Projet & { client?: { nom_societe: string } | null })[])
-      setFactures((s4.data ?? []) as unknown as (Facture & { client?: { nom_societe: string } | null })[])
-
-      // Stats projets
-      const counts: Record<string, number> = {}
-      for (const p of (s5.data ?? [])) counts[p.statut] = (counts[p.statut] ?? 0) + 1
-      const colors: Record<string, string> = { en_attente: '#f59e0b', en_cours: '#6c63ff', en_revision: '#8b5cf6', termine: '#10b981', annule: '#ef4444' }
-      const labels: Record<string, string> = { en_attente: 'En attente', en_cours: 'En cours', en_revision: 'En révision', termine: 'Terminé', annule: 'Annulé' }
-      setProjetStats(Object.entries(counts).map(([k, v]) => ({ name: labels[k] ?? k, value: v, color: colors[k] ?? '#8b8aa8' })))
-
-      setLoading(false)
     }
     load()
   }, [])

@@ -21,13 +21,14 @@ export function DevisDetailPage() {
 
   const load = async () => {
     if (!id) return
-    const [d, l] = await Promise.all([
-      supabase.from('devis').select('*,clients(*)').eq('id', id).single(),
-      supabase.from('lignes_devis').select('*').eq('devis_id', id).order('position'),
-    ])
-    setDevis(d.data as Devis)
-    setLignes(l.data as LigneDevis[] ?? [])
-    setLoading(false)
+    try {
+      const [d, l] = await Promise.all([
+        supabase.from('devis').select('*,clients(*)').eq('id', id).single(),
+        supabase.from('lignes_devis').select('*').eq('devis_id', id).order('position'),
+      ])
+      setDevis(d.data as Devis)
+      setLignes(l.data as LigneDevis[] ?? [])
+    } catch (e) { console.error(e) } finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])

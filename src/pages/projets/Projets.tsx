@@ -26,6 +26,7 @@ export function ProjetsPage() {
 
   const load = async () => {
     setLoading(true)
+    try {
     let q = supabase.from('projets')
       .select('*,clients(nom_societe),chef_projet:chef_projet_id(prenom,nom)', { count: 'exact' })
     if (statut) q = q.eq('statut', statut)
@@ -34,7 +35,9 @@ export function ProjetsPage() {
     const { data, count } = await q
     setProjets(data as Projet[] ?? [])
     setTotal(count ?? 0)
-    setLoading(false)
+    } catch (e) { console.error(e) } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [page, statut])

@@ -19,9 +19,12 @@ export function CollaborateursPage() {
 
   const load = async () => {
     setLoading(true)
+    try {
     const { data } = await supabase.from('collaborateurs').select('*').order('nom')
     setCollabs(data as Collaborateur[] ?? [])
-    setLoading(false)
+    } catch (e) { console.error(e) } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])

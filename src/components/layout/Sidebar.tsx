@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Users, Building2, FolderKanban,
-  FileText, Receipt, Settings, Zap, ChevronLeft, ChevronRight, Menu, X,
+  FileText, Receipt, Settings, Zap, ChevronLeft, ChevronRight, Menu, X, TrendingDown,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Avatar } from '@/components/shared/avatar'
@@ -16,6 +16,7 @@ const NAV = [
   { to: '/projets',        label: 'Projets',          icon: FolderKanban },
   { to: '/devis',          label: 'Devis',            icon: FileText },
   { to: '/factures',       label: 'Factures',         icon: Receipt },
+  { to: '/depenses',       label: 'Dépenses',         icon: TrendingDown },
 ]
 
 interface SidebarProps {

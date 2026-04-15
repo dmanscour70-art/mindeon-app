@@ -178,6 +178,42 @@ export interface Paiement {
   created_at: string
 }
 
+export interface Maintenance {
+  id: string
+  projet_id: string
+  client_id: string | null
+  description: string
+  prix_ht: number
+  taux_tva: number
+  frequence: 'mensuel' | 'trimestriel' | 'annuel'
+  date_debut: string
+  date_fin: string | null
+  actif: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+  projet?: Projet | null
+  client?: Client | null
+}
+
+export type CategorieDepense = 'logiciels' | 'materiel' | 'services' | 'marketing' | 'salaires' | 'loyer' | 'autre'
+export type TypeDepense = 'mensuel' | 'ponctuel'
+
+export interface Depense {
+  id: string
+  description: string
+  montant_ht: number
+  taux_tva: number
+  categorie: CategorieDepense
+  type_depense: TypeDepense
+  date_depense: string
+  projet_id: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+  projet?: Projet | null
+}
+
 // KPIs
 export interface StatsDashboard {
   ca_mois_facture: number

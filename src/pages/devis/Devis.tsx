@@ -20,13 +20,16 @@ export function DevisPage() {
 
   const load = async () => {
     setLoading(true)
+    try {
     let q = supabase.from('devis').select('*,clients(nom_societe)', { count: 'exact' })
     if (statut) q = q.eq('statut', statut)
     q = q.order('created_at', { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
     const { data, count } = await q
     setDevis(data as Devis[] ?? [])
     setTotal(count ?? 0)
-    setLoading(false)
+    } catch (e) { console.error(e) } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [page, statut])

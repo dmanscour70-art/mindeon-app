@@ -25,15 +25,16 @@ export function FactureDetailPage() {
 
   const load = async () => {
     if (!id) return
-    const [f, l, p] = await Promise.all([
-      supabase.from('factures').select('*,clients(*)').eq('id', id).single(),
-      supabase.from('lignes_facture').select('*').eq('facture_id', id).order('position'),
-      supabase.from('paiements').select('*').eq('facture_id', id).order('date_paiement', { ascending: false }),
-    ])
-    setFacture(f.data as Facture)
-    setLignes(l.data as LigneFacture[] ?? [])
-    setPaiements(p.data as Paiement[] ?? [])
-    setLoading(false)
+    try {
+      const [f, l, p] = await Promise.all([
+        supabase.from('factures').select('*,clients(*)').eq('id', id).single(),
+        supabase.from('lignes_facture').select('*').eq('facture_id', id).order('position'),
+        supabase.from('paiements').select('*').eq('facture_id', id).order('date_paiement', { ascending: false }),
+      ])
+      setFacture(f.data as Facture)
+      setLignes(l.data as LigneFacture[] ?? [])
+      setPaiements(p.data as Paiement[] ?? [])
+    } catch (e) { console.error(e) } finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])

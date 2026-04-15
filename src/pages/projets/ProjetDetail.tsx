@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit, Trash2, Euro } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardBody, CardTitle } from '@/components/ui/card'
 import { Modal, ConfirmDialog } from '@/components/ui/modal'
-import { StatutProjetBadge, StatutDevisBadge, StatutFactureBadge } from '@/components/ui/badge'
+import { StatutProjetBadge, StatutDevisBadge } from '@/components/ui/badge'
 import { ProgressBar } from '@/components/shared/progress-bar'
 import { Avatar } from '@/components/shared/avatar'
 import { ProjetForm } from '@/components/projets/ProjetForm'
 import { TachesKanban } from '@/components/projets/TachesKanban'
+import { MaintenanceTab } from '@/components/projets/MaintenanceTab'
+import { EmailTab } from '@/components/shared/EmailTab'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Projet, Tache, Collaborateur, Devis, Facture } from '@/types'
 
-const TABS = ['Général', 'Tâches', 'Équipe', 'Finances'] as const
+const TABS = ['Général', 'Tâches', 'Équipe', 'Finances', 'Maintenances', 'Email'] as const
 type Tab = (typeof TABS)[number]
 
 export function ProjetDetailPage() {
@@ -34,21 +36,33 @@ export function ProjetDetailPage() {
   const load = async () => {
     if (!id) return
     setLoading(true)
-    const [p, t, e, d, f, ac] = await Promise.all([
-      supabase.from('projets').select('*,clients(nom_societe),chef_projet:chef_projet_id(prenom,nom)').eq('id', id).single(),
-      supabase.from('taches').select('*,assignee:assignee_id(prenom,nom,avatar_url)').eq('projet_id', id).order('position'),
-      supabase.from('projet_collaborateurs').select('collaborateur_id,collaborateur:collaborateur_id(*)').eq('projet_id', id),
-      supabase.from('devis').select('*').eq('projet_id', id).order('created_at', { ascending: false }),
-      supabase.from('factures').select('*').eq('client_id', (await supabase.from('projets').select('client_id').eq('id', id).single()).data?.client_id ?? '').limit(5),
-      supabase.from('collaborateurs').select('*').eq('actif', true).order('nom'),
-    ])
-    setProjet(p.data as Projet)
-    setTaches(t.data as Tache[] ?? [])
-    setEquipe((e.data ?? []).map((r: Record<string, unknown>) => r.collaborateur as Collaborateur))
-    setDevis(d.data as Devis[] ?? [])
-    setFactures(f.data as Facture[] ?? [])
-    setAllCollabs(ac.data as Collaborateur[] ?? [])
-    setLoading(false)
+    try {
+      const [p, t, e, d, ac] = await Promise.all([
+        supabase.from('projets').select('*,clients(nom_societe,email),chef_projet:chef_projet_id(id,prenom,nom,role,avatar_url)').eq('id', id).single(),
+        supabase.from('taches').select('*,assignee:assignee_id(prenom,nom,avatar_url)').eq('projet_id', id).order('position'),
+        supabase.from('projet_collaborateurs').select('collaborateur_id,collaborateur:collaborateur_id(*)').eq('projet_id', id),
+        supabase.from('devis').select('*').eq('projet_id', id).order('created_at', { ascending: false }),
+        supabase.from('collaborateurs').select('*').eq('actif', true).order('nom'),
+      ])
+      const projetData = p.data as Projet
+      setProjet(projetData)
+      setTaches(t.data as Tache[] ?? [])
+      setEquipe((e.data ?? []).map((r: Record<string, unknown>) => r.collaborateur as Collaborateur))
+      setDevis(d.data as Devis[] ?? [])
+      setAllCollabs(ac.data as Collaborateur[] ?? [])
+
+      // Load factures for the client
+      const clientId = (projetData as Projet & { client_id?: string }).client_id
+      if (clientId) {
+        const { data: fData } = await supabase
+          .from('factures')
+          .select('*')
+          .eq('client_id', clientId)
+          .order('created_at', { ascending: false })
+          .limit(10)
+        setFactures(fData as Facture[] ?? [])
+      }
+    } catch (e) { console.error(e) } finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [id])
@@ -68,6 +82,11 @@ export function ProjetDetailPage() {
   if (loading) return <div className="animate-pulse space-y-4"><div className="h-10 bg-border-color rounded" /><div className="h-64 bg-border-color rounded" /></div>
   if (!projet) return <div className="text-text-muted">Projet introuvable</div>
 
+  const clientData = (projet as Projet & { clients?: { nom_societe: string; email?: string | null } | null }).clients
+  const chefProjet = (projet as Projet & { chef_projet?: Collaborateur | null }).chef_projet
+  const clientId = (projet as Projet & { client_id?: string | null }).client_id ?? null
+  const clientEmail = clientData?.email ?? null
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -80,9 +99,19 @@ export function ProjetDetailPage() {
             <h1 className="font-heading text-xl font-bold text-text-primary truncate">{projet.nom}</h1>
             <StatutProjetBadge statut={projet.statut} />
           </div>
-          {(projet as Projet & { clients?: { nom_societe: string } | null }).clients && (
-            <p className="text-text-muted text-sm">{(projet as Projet & { clients?: { nom_societe: string } | null }).clients?.nom_societe}</p>
-          )}
+          <div className="flex items-center gap-3 mt-0.5">
+            {clientData && (
+              <p className="text-text-muted text-sm">{clientData.nom_societe}</p>
+            )}
+            {chefProjet && (
+              <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                <User className="w-3 h-3" />
+                <span>{chefProjet.prenom} {chefProjet.nom}</span>
+                <span className="text-text-muted/50">·</span>
+                <span className="capitalize">{chefProjet.role}</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
@@ -125,21 +154,37 @@ export function ProjetDetailPage() {
       </div>
 
       {/* Onglets */}
-      <div className="flex gap-1 border-b border-border-color">
+      <div className="flex gap-1 border-b border-border-color overflow-x-auto">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${tab === t ? 'border-accent text-accent' : 'border-transparent text-text-muted hover:text-text-primary'}`}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${tab === t ? 'border-accent text-accent' : 'border-transparent text-text-muted hover:text-text-primary'}`}
           >{t}</button>
         ))}
       </div>
 
       {tab === 'Général' && (
-        <Card>
-          <CardBody className="space-y-3 text-sm">
-            {projet.description && <p className="text-text-primary">{projet.description}</p>}
-            {projet.type_projet && <div className="flex gap-2"><span className="text-text-muted w-24">Type</span><span className="text-text-primary">{projet.type_projet}</span></div>}
-          </CardBody>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardBody className="space-y-3 text-sm">
+              {projet.description && <p className="text-text-primary">{projet.description}</p>}
+              {projet.type_projet && <div className="flex gap-2"><span className="text-text-muted w-24">Type</span><span className="text-text-primary">{projet.type_projet}</span></div>}
+            </CardBody>
+          </Card>
+          {chefProjet && (
+            <Card>
+              <CardHeader><CardTitle>Chef de projet</CardTitle></CardHeader>
+              <CardBody>
+                <div className="flex items-center gap-3">
+                  <Avatar prenom={chefProjet.prenom} nom={chefProjet.nom} src={chefProjet.avatar_url} size="md" />
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">{chefProjet.prenom} {chefProjet.nom}</p>
+                    <p className="text-xs text-text-muted capitalize">{chefProjet.role}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+        </div>
       )}
 
       {tab === 'Tâches' && (
@@ -155,7 +200,7 @@ export function ProjetDetailPage() {
                 <Avatar prenom={c.prenom} nom={c.nom} src={c.avatar_url} size="md" />
                 <div>
                   <p className="text-sm font-medium text-text-primary">{c.prenom} {c.nom}</p>
-                  <p className="text-xs text-text-muted">{c.role}</p>
+                  <p className="text-xs text-text-muted capitalize">{c.role}</p>
                 </div>
               </div>
             ))}
@@ -196,6 +241,20 @@ export function ProjetDetailPage() {
             </CardBody>
           </Card>
         </div>
+      )}
+
+      {tab === 'Maintenances' && (
+        <MaintenanceTab projetId={id!} clientId={clientId} />
+      )}
+
+      {tab === 'Email' && (
+        <EmailTab
+          clientId={clientId}
+          clientEmail={clientEmail}
+          clientNom={clientData?.nom_societe}
+          devis={devis}
+          factures={factures}
+        />
       )}
 
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Modifier le projet" size="lg">

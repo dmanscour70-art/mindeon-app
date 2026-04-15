@@ -26,6 +26,7 @@ export function ClientsPage() {
 
   const load = async () => {
     setLoading(true)
+    try {
     let q = supabase.from('clients').select('*,commercial:commercial_id(prenom,nom)', { count: 'exact' })
     if (search) q = q.ilike('nom_societe', `%${search}%`)
     if (statut) q = q.eq('statut', statut)
@@ -34,7 +35,9 @@ export function ClientsPage() {
     const { data, count } = await q
     setClients(data as Client[] ?? [])
     setTotal(count ?? 0)
-    setLoading(false)
+    } catch (e) { console.error(e) } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [page, search, statut])

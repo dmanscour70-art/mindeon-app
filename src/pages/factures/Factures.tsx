@@ -21,13 +21,16 @@ export function FacturesPage() {
 
   const load = async () => {
     setLoading(true)
+    try {
     let q = supabase.from('factures').select('*,clients(nom_societe)', { count: 'exact' })
     if (statut) q = q.eq('statut', statut)
     q = q.order('date_emission', { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
     const { data, count } = await q
     setFactures(data as Facture[] ?? [])
     setTotal(count ?? 0)
-    setLoading(false)
+    } catch (e) { console.error(e) } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [page, statut])
