@@ -16,6 +16,7 @@ import { FactureDetailPage } from '@/pages/factures/FactureDetail'
 import { FactureFormPage } from '@/pages/factures/FactureForm'
 import { ParametresPage } from '@/pages/Parametres'
 import { DepensesPage } from '@/pages/depenses/Depenses'
+import { MaintenancesPage } from '@/pages/maintenances/Maintenances'
 
 export default function App() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/factures/nouvelle" element={<FactureFormPage />} />
           <Route path="/factures/:id" element={<FactureDetailPage />} />
           <Route path="/factures/:id/modifier" element={<FactureFormPage />} />
+          <Route path="/maintenances" element={<MaintenancesPage />} />
           <Route path="/depenses" element={<DepensesPage />} />
           <Route path="/parametres" element={<ParametresPage />} />
         </Route>

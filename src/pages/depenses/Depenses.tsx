@@ -117,24 +117,30 @@ export function DepensesPage() {
 
   const handleSave = async () => {
     if (!form.description.trim()) { toast.error('Description requise'); return }
+    if (!form.date_depense) { toast.error('Date requise'); return }
     setSaving(true)
-    const payload = {
-      description: form.description.trim(),
-      montant_ht: parseFloat(form.montant_ht) || 0,
-      taux_tva: parseFloat(form.taux_tva) || 20,
-      categorie: form.categorie,
-      type_depense: form.type_depense,
-      date_depense: form.date_depense,
-      notes: form.notes.trim() || null,
+    try {
+      const payload = {
+        description: form.description.trim(),
+        montant_ht: parseFloat(form.montant_ht) || 0,
+        taux_tva: parseFloat(form.taux_tva) || 20,
+        categorie: form.categorie,
+        type_depense: form.type_depense,
+        date_depense: form.date_depense,
+        notes: form.notes.trim() || null,
+      }
+      const { error } = editing
+        ? await supabase.from('depenses').update(payload).eq('id', editing.id)
+        : await supabase.from('depenses').insert(payload)
+      if (error) { toast.error(error.message); return }
+      toast.success(editing ? 'Dépense mise à jour' : 'Dépense ajoutée')
+      setFormOpen(false)
+      load()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erreur lors de la sauvegarde')
+    } finally {
+      setSaving(false)
     }
-    const { error } = editing
-      ? await supabase.from('depenses').update(payload).eq('id', editing.id)
-      : await supabase.from('depenses').insert(payload)
-    setSaving(false)
-    if (error) { toast.error(error.message); return }
-    toast.success(editing ? 'Dépense mise à jour' : 'Dépense ajoutée')
-    setFormOpen(false)
-    load()
   }
 
   const handleDelete = async () => {
